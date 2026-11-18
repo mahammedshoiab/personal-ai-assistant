@@ -11,10 +11,7 @@ export default async (request) => {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return Response.json(
-        { error: "GEMINI_API_KEY is missing in Netlify" },
-        { status: 500 }
-      );
+      throw new Error("GEMINI_API_KEY is missing in Netlify");
     }
 
     const { messages } = await request.json();
@@ -31,54 +28,58 @@ export default async (request) => {
       parts: [{ text: String(m.content).slice(0, 4000) }]
     }));
 
-    const result = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{
-              text: "You are a friendly, intelligent personal AI assistant. Give helpful, clear and accurate answers."
-            }]
+    const models = [
+      "gemini-3.8-flash",
+      "gemini-3.5-flash-lite"
+    ];
+
+    let lastError = "AI service is temporarily unavailable.";
+
+    for (const model of models) {
+      const result = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
           },
-          contents
-        })
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{
+                text: "You are a friendly, intelligent personal AI assistant. Give helpful, clear and accurate answers."
+              }]
+            },
+            contents
+          })
+        }
+      );
+
+      const data = await result.json().catch(() => ({}));
+
+      const reply = data.candidates?.[0]?.content?.parts
+        ?.map(part => part.text || "")
+        .join("")
+        .trim();
+
+      if (result.ok && reply) {
+        return Response.json({ reply });
       }
+
+      lastError =
+        data.error?.message ||
+        `Model ${model} returned status ${result.status}`;
+
+      console.error("Gemini error:", model, result.status, lastError);
+    }
+
+    return Response.json(
+      { error: lastError },
+      { status: 502 }
     );
 
-    const data = await result.json();
-
-    if (!result.ok) {
-      console.error("Gemini API error:", data);
-
-      return Response.json(
-        {
-          error: data.error?.message || "Gemini API request failed",
-          status: result.status
-        },
-        { status: 502 }
-      );
-    }
-
-    const reply = data.candidates?.[0]?.content?.parts
-      ?.map(part => part.text || "")
-      .join("");
-
-    if (!reply) {
-      return Response.json(
-        { error: "Gemini returned an empty response" },
-        { status: 502 }
-      );
-    }
-
-    return Response.json({ reply });
-
   } catch (error) {
-    console.error("Server error:", error);
+    console.error("Chat function error:", error);
 
     return Response.json(
       { error: error.message || "Server error" },
@@ -86,3 +87,4 @@ export default async (request) => {
     );
   }
 };
+
