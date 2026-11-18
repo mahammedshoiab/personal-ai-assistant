@@ -9,11 +9,15 @@ let history = [];
 
 function addMessage(text, type) {
   const welcome = chat.querySelector(".welcome");
-  if (welcome) welcome.remove();
+
+  if (welcome) {
+    welcome.remove();
+  }
 
   const message = document.createElement("div");
   message.className = `message ${type}`;
   message.textContent = text;
+
   chat.appendChild(message);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -22,10 +26,15 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const text = input.value.trim();
+
   if (!text || send.disabled) return;
 
   addMessage(text, "user");
-  history.push({ role: "user", content: text });
+
+  history.push({
+    role: "user",
+    content: text
+  });
 
   input.value = "";
   send.disabled = true;
@@ -33,6 +42,7 @@ form.addEventListener("submit", async (e) => {
   const loading = document.createElement("div");
   loading.className = "message bot";
   loading.textContent = "Thinking...";
+
   chat.appendChild(loading);
 
   try {
@@ -43,17 +53,26 @@ form.addEventListener("submit", async (e) => {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ messages: history })
+        body: JSON.stringify({
+          messages: history
+        })
       }
     );
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "AI request failed");
+      throw new Error(
+        data.error || `Request failed: ${response.status}`
+      );
+    }
+
+    if (!data.reply) {
+      throw new Error("AI returned an empty reply.");
     }
 
     loading.remove();
+
     addMessage(data.reply, "bot");
 
     history.push({
@@ -63,12 +82,16 @@ form.addEventListener("submit", async (e) => {
 
   } catch (error) {
     loading.remove();
+
     addMessage(
-      "Sorry, something went wrong. Please try again.",
+      error.message || "Unknown error occurred",
       "bot"
     );
+
     history.pop();
-    console.error(error);
+
+    console.error("Chat error:", error);
+
   } finally {
     send.disabled = false;
     input.focus();
@@ -77,6 +100,7 @@ form.addEventListener("submit", async (e) => {
 
 newChat.addEventListener("click", () => {
   history = [];
+
   chat.innerHTML = `
     <div class="welcome">
       <div class="welcome-icon">✦</div>
@@ -85,3 +109,4 @@ newChat.addEventListener("click", () => {
     </div>
   `;
 });
+
