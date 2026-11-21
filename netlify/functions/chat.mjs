@@ -79,7 +79,8 @@ export default async (request) => {
     );
 
   } catch (error) {
-    console.error("Chat function error:", error);
+    console.
+ error("Chat function error:", error);
 
     return Response.json(
       { error: error.message || "Server error" },
