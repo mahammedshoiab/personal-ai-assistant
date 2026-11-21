@@ -4,81 +4,81 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Personal AI</title>
+  <title>My Personal AI Assistant</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <div class="app">
-
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header">
-        <h2>✦ My AI</h2>
-        <button id="closeSidebar" type="button">✕</button>
+        <h2>My Assistant</h2>
+        <button id="closeSidebar" type="button">×</button>
       </div>
 
       <button id="newChat" class="new-chat" type="button">
-        ＋ New Chat
+        + New Chat
       </button>
 
-      <h3 class="history-heading">Recent Chats</h3>
-
       <div id="chatList" class="chat-list"></div>
-
-      <div class="sidebar-footer">
-        Personal AI Assistant
-      </div>
     </aside>
 
     <section class="workspace">
-
-      <header>
-        <button id="menuToggle" type="button"
-          aria-label="Open chat history">☰</button>
-
-        <div class="logo">✦</div>
-
+      <header class="header">
+        <button id="menuToggle" type="button">☰</button>
         <div>
-          <h2>My Personal AI</h2>
-          <span>● Online</span>
+          <h1>Personal AI Assistant</h1>
+          <p>Online</p>
         </div>
       </header>
 
-      <main id="chat">
+      <main id="chat" class="chat">
         <div class="welcome">
-          <div class="welcome-icon">✦</div>
-          <h1>How can I help you?</h1>
-          <p>Your personal AI assistant is ready.</p>
+          <h2>Hello! 👋</h2>
+          <p>How can I help you today?</p>
         </div>
       </main>
 
-      <form id="chatForm">
-        <textarea
-          id="message"
-          placeholder="Ask me anything..."
-          rows="1"
-        ></textarea>
+      <form id="chatForm" class="chat-form">
+        <div id="fileStatus" class="file-status"></div>
 
-        <button
-          type="button"
-          id="voiceInput"
-          title="Speak your message"
-          aria-label="Start voice input"
-        >🎤</button>
+        <div class="input-area">
+          <input
+            type="file"
+            id="fileInput"
+            accept=".pdf,.txt,application/pdf,text/plain"
+            hidden
+          >
 
-        <button type="submit" id="send">➤</button>
+          <button id="attachFile" type="button" title="Attach PDF or TXT">
+            📎
+          </button>
+
+          <textarea
+            id="message"
+            placeholder="Ask me anything..."
+            rows="1"
+            required
+          ></textarea>
+
+          <button id="voiceInput" type="button" title="Voice input">
+            🎤
+          </button>
+
+          <button id="send" type="submit">Send</button>
+        </div>
+
+        <p id="voiceStatus"></p>
       </form>
 
-      <div id="voiceStatus" class="voice-status"
-        aria-live="polite"></div>
-
       <footer>
-        AI can make mistakes. Check important information.
+        Your Personal AI Assistant
       </footer>
-
     </section>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="script.js"></script>
+
 </body>
 </html>
