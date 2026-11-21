@@ -11,7 +11,6 @@
 
   <div class="app">
 
-    <!-- Chat History Sidebar -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header">
         <h2>✦ My AI</h2>
@@ -24,22 +23,18 @@
 
       <h3 class="history-heading">Recent Chats</h3>
 
-      <div id="chatList" class="chat-list">
-        <!-- Saved conversations appear here -->
-      </div>
+      <div id="chatList" class="chat-list"></div>
 
       <div class="sidebar-footer">
         Personal AI Assistant
       </div>
     </aside>
 
-    <!-- Main Chat Area -->
     <section class="workspace">
 
       <header>
-        <button id="menuToggle" type="button" aria-label="Open chat history">
-          ☰
-        </button>
+        <button id="menuToggle" type="button"
+          aria-label="Open chat history">☰</button>
 
         <div class="logo">✦</div>
 
@@ -64,8 +59,18 @@
           rows="1"
         ></textarea>
 
+        <button
+          type="button"
+          id="voiceInput"
+          title="Speak your message"
+          aria-label="Start voice input"
+        >🎤</button>
+
         <button type="submit" id="send">➤</button>
       </form>
+
+      <div id="voiceStatus" class="voice-status"
+        aria-live="polite"></div>
 
       <footer>
         AI can make mistakes. Check important information.
