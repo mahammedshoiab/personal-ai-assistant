@@ -10,33 +10,68 @@
 <body>
 
   <div class="app">
-    <header>
-      <div class="logo">✦</div>
-      <div>
-        <h2>My Personal AI</h2>
-        <span>● Online</span>
+
+    <!-- Chat History Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h2>✦ My AI</h2>
+        <button id="closeSidebar" type="button">✕</button>
       </div>
-      <button id="newChat">＋</button>
-    </header>
 
-    <main id="chat">
-      <div class="welcome">
-        <div class="welcome-icon">✦</div>
-        <h1>How can I help you?</h1>
-        <p>Your personal AI assistant is ready.</p>
+      <button id="newChat" class="new-chat" type="button">
+        ＋ New Chat
+      </button>
+
+      <h3 class="history-heading">Recent Chats</h3>
+
+      <div id="chatList" class="chat-list">
+        <!-- Saved conversations appear here -->
       </div>
-    </main>
 
-    <form id="chatForm">
-      <textarea id="message"
-        placeholder="Ask me anything..."
-        rows="1"></textarea>
-      <button type="submit" id="send">➤</button>
-    </form>
+      <div class="sidebar-footer">
+        Personal AI Assistant
+      </div>
+    </aside>
 
-    <footer>
-      AI can make mistakes. Check important information.
-    </footer>
+    <!-- Main Chat Area -->
+    <section class="workspace">
+
+      <header>
+        <button id="menuToggle" type="button" aria-label="Open chat history">
+          ☰
+        </button>
+
+        <div class="logo">✦</div>
+
+        <div>
+          <h2>My Personal AI</h2>
+          <span>● Online</span>
+        </div>
+      </header>
+
+      <main id="chat">
+        <div class="welcome">
+          <div class="welcome-icon">✦</div>
+          <h1>How can I help you?</h1>
+          <p>Your personal AI assistant is ready.</p>
+        </div>
+      </main>
+
+      <form id="chatForm">
+        <textarea
+          id="message"
+          placeholder="Ask me anything..."
+          rows="1"
+        ></textarea>
+
+        <button type="submit" id="send">➤</button>
+      </form>
+
+      <footer>
+        AI can make mistakes. Check important information.
+      </footer>
+
+    </section>
   </div>
 
   <script src="script.js"></script>
