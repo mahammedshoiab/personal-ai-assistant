@@ -106,6 +106,7 @@ body {
   background: transparent;
   color: #aaa;
   font-size: 15px;
+  cursor: pointer;
 }
 
 .sidebar-footer {
@@ -163,6 +164,7 @@ header span {
   font-size: 22px;
   padding: 5px;
   color: #333;
+  cursor: pointer;
 }
 
 /* Chat messages */
@@ -230,6 +232,7 @@ form {
 
 textarea {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   resize: none;
@@ -239,17 +242,69 @@ textarea {
   max-height: 120px;
 }
 
+#send,
+#voiceInput {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
 #send {
   background: #171717;
   color: white;
-  border-radius: 12px;
-  width: 42px;
-  height: 42px;
   font-size: 22px;
 }
 
 #send:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#voiceInput {
+  background: #f1f1f1;
+  color: #171717;
+  font-size: 20px;
+  border: 1px solid #ddd;
+}
+
+#voiceInput:hover {
+  background: #e5e5e5;
+}
+
+#voiceInput.listening {
+  background: #fee2e2;
+  border-color: #ef4444;
+  animation: pulse 1.2s infinite;
+}
+
+#voiceInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 #ef444455;
+  }
+  50% {
+    box-shadow: 0 0 0 7px #ef444400;
+  }
+}
+
+.voice-status {
+  min-height: 0;
+  text-align: center;
+  font-size: 12px;
+  color: #777;
+  padding: 0 10px;
+}
+
+.voice-status:not(:empty) {
+  padding: 4px 10px;
 }
 
 footer {
@@ -295,6 +350,18 @@ footer {
 
   .welcome h1 {
     font-size: 23px;
+  }
+
+  form {
+    margin: 10px;
+    gap: 7px;
+  }
+
+  #send,
+  #voiceInput {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
   }
 }
 
