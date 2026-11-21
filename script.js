@@ -11,6 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeSidebar = document.getElementById("closeSidebar");
   const voiceInput = document.getElementById("voiceInput");
   const voiceStatus = document.getElementById("voiceStatus");
+  const fileInput = document.getElementById("fileInput");
+  const attachFile = document.getElementById("attachFile");
+  const fileStatus = document.getElementById("fileStatus");
   const app = document.querySelector(".app");
 
   if (
@@ -22,12 +25,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const STORAGE_KEY = "personalAI_chats";
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  const MAX_DOCUMENT_TEXT = 20000;
 
   let conversations = [];
   let activeChatId = null;
   let busy = false;
   let recognition = null;
   let isListening = false;
+
+  // Current document stays in memory only.
+  let activeDocumentText = "";
+  let activeDocumentName = "";
 
   // Load saved conversations
   try {
@@ -65,6 +74,40 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
+  function clearDocument() {
+    activeDocumentText = "";
+    activeDocumentName = "";
+
+    if (fileInput) {
+      fileInput.value = "";
+    }
+
+    if (fileStatus) {
+      fileStatus.textContent = "";
+      fileStatus.style.display = "none";
+    }
+  }
+
+  function showFileStatus(name) {
+    if (!fileStatus) return;
+
+    fileStatus.innerHTML = "";
+
+    const nameText = document.createElement("span");
+    nameText.textContent = "📄 " + name + " ";
+
+    const clearButton = document.createElement("button");
+    clearButton.type = "button";
+    clearButton.textContent = "✕";
+    clearButton.title = "Remove document";
+
+    clearButton.addEventListener("click", clearDocument);
+
+    fileStatus.appendChild(nameText);
+    fileStatus.appendChild(clearButton);
+    fileStatus.style.display = "block";
+  }
+
   function showWelcome() {
     chat.innerHTML = `
       <div class="welcome">
@@ -80,7 +123,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (welcome) welcome.remove();
 
     const message = document.createElement("div");
-    message.className = `message ${type}`;
+
+    message.className = type === "user"
+      ? "message user user-message"
+      : "message bot assistant-message";
+
     message.textContent = text;
 
     chat.appendChild(message);
@@ -135,6 +182,10 @@ document.addEventListener("DOMContentLoaded", () => {
       item.addEventListener("click", () => {
         if (busy) return;
 
+        if (activeChatId !== conversation.id) {
+          clearDocument();
+        }
+
         activeChatId = conversation.id;
         renderMessages();
         renderChatList();
@@ -152,6 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (activeChatId === conversation.id) {
           activeChatId = null;
+          clearDocument();
           showWelcome();
         }
 
@@ -168,6 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (busy) return;
 
     stopVoiceInput();
+    clearDocument();
 
     activeChatId = null;
     showWelcome();
@@ -203,6 +256,107 @@ document.addEventListener("DOMContentLoaded", () => {
     closeSidebar.addEventListener("click", closeMobileSidebar);
   }
 
+  // PDF and TXT upload
+  if (attachFile && fileInput) {
+    attachFile.addEventListener("click", () => {
+      if (!busy) {
+        fileInput.click();
+      }
+    });
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+
+      if (!file) return;
+
+      const extension = file.name.split(".").pop().toLowerCase();
+
+      if (!["pdf", "txt"].includes(extension)) {
+        alert("Please select a PDF or TXT file.");
+        fileInput.value = "";
+        return;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        alert("File is too large. Maximum file size is 5 MB.");
+        fileInput.value = "";
+        return;
+      }
+
+      attachFile.disabled = true;
+
+      if (fileStatus) {
+        fileStatus.textContent = "Reading " + file.name + "...";
+        fileStatus.style.display = "block";
+      }
+
+      try {
+        let extractedText = "";
+
+        if (extension === "txt") {
+          extractedText = await file.text();
+        } else {
+          if (!window.pdfjsLib) {
+            throw new Error("PDF reader could not load. Refresh the page and try again.");
+          }
+
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+          const buffer = await file.arrayBuffer();
+
+          const pdf = await window.pdfjsLib.getDocument({
+            data: new Uint8Array(buffer)
+          }).promise;
+
+          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+            const page = await pdf.getPage(pageNumber);
+            const content = await page.getTextContent();
+
+            const pageText = content.items
+              .map(item => item.str || "")
+              .join(" ");
+
+            extractedText += pageText + "\n";
+
+            if (extractedText.length >= MAX_DOCUMENT_TEXT) {
+              break;
+            }
+          }
+        }
+
+        extractedText = extractedText
+          .replace(/\s+/g, " ")
+          .trim();
+
+        if (!extractedText) {
+          throw new Error(
+            "No readable text found. This PDF may be scanned or image-based."
+          );
+        }
+
+        activeDocumentText =
+          extractedText.slice(0, MAX_DOCUMENT_TEXT);
+
+        activeDocumentName = file.name;
+
+        showFileStatus(file.name);
+
+        if (extractedText.length > MAX_DOCUMENT_TEXT) {
+          alert("Document loaded. Only the first 20,000 characters will be used.");
+        }
+
+      } catch (error) {
+        console.error("File reading error:", error);
+        clearDocument();
+        alert("Could not read file: " + error.message);
+
+      } finally {
+        attachFile.disabled = false;
+      }
+    });
+  }
+
   // Voice input setup
   const SpeechRecognition =
     window.SpeechRecognition ||
@@ -233,8 +387,11 @@ document.addEventListener("DOMContentLoaded", () => {
         recognition.start();
       } catch (error) {
         console.error("Voice start error:", error);
-        voiceStatus.textContent =
-          "Unable to start microphone. Please try again.";
+
+        if (voiceStatus) {
+          voiceStatus.textContent =
+            "Unable to start microphone. Please try again.";
+        }
       }
     });
 
@@ -245,7 +402,9 @@ document.addEventListener("DOMContentLoaded", () => {
       voiceInput.title = "Stop recording";
       voiceInput.setAttribute("aria-label", "Stop voice input");
 
-      voiceStatus.textContent = "Listening... Speak now.";
+      if (voiceStatus) {
+        voiceStatus.textContent = "Listening... Speak now.";
+      }
     };
 
     recognition.onresult = event => {
@@ -271,7 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
         input.value += separator + finalTranscript.trim();
       }
 
-      if (interimTranscript) {
+      if (interimTranscript && voiceStatus) {
         voiceStatus.textContent =
           "Recognizing: " + interimTranscript;
       }
@@ -279,6 +438,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     recognition.onerror = event => {
       console.error("Speech recognition error:", event.error);
+
+      if (!voiceStatus) return;
 
       if (event.error === "not-allowed") {
         voiceStatus.textContent =
@@ -300,15 +461,19 @@ document.addEventListener("DOMContentLoaded", () => {
       voiceInput.title = "Speak your message";
       voiceInput.setAttribute("aria-label", "Start voice input");
 
-      if (voiceStatus.textContent.startsWith("Listening") ||
-          voiceStatus.textContent.startsWith("Recognizing")) {
+      if (
+        voiceStatus &&
+        (voiceStatus.textContent.startsWith("Listening") ||
+         voiceStatus.textContent.startsWith("Recognizing"))
+      ) {
         voiceStatus.textContent = "Voice input finished.";
       }
     };
 
   } else if (voiceInput) {
     voiceInput.disabled = true;
-    voiceInput.title = "Speech recognition is not supported in this browser";
+    voiceInput.title =
+      "Speech recognition is not supported in this browser";
 
     if (voiceStatus) {
       voiceStatus.textContent =
@@ -322,7 +487,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const text = input.value.trim();
 
-    if (!text || busy) return;
+    if ((!text && !activeDocumentText) || busy) return;
 
     stopVoiceInput();
 
@@ -333,9 +498,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       conversations.push({
         id: activeChatId,
-        title: text.length > 35
-          ? text.slice(0, 35) + "..."
-          : text,
+        title: text
+          ? (text.length > 35 ? text.slice(0, 35) + "..." : text)
+          : "Document questions",
         messages: []
       });
     }
@@ -344,6 +509,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!conversation) return;
 
+    const userText = text || "Please read the attached document and summarize it.";
+
     busy = true;
     send.disabled = true;
 
@@ -351,14 +518,24 @@ document.addEventListener("DOMContentLoaded", () => {
       voiceInput.disabled = true;
     }
 
-    addMessage(text, "user");
+    if (attachFile) {
+      attachFile.disabled = true;
+    }
+
+    addMessage(
+      activeDocumentName
+        ? userText + " (Document: " + activeDocumentName + ")"
+        : userText,
+      "user"
+    );
+
     input.value = "";
 
     const loading = addMessage("Thinking...", "bot");
 
     const messages = [
       ...conversation.messages,
-      { role: "user", content: text }
+      { role: "user", content: userText }
     ];
 
     try {
@@ -369,7 +546,10 @@ document.addEventListener("DOMContentLoaded", () => {
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ messages })
+          body: JSON.stringify({
+            messages,
+            documentText: activeDocumentText
+          })
         }
       );
 
@@ -388,7 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
       loading.remove();
 
       conversation.messages.push(
-        { role: "user", content: text },
+        { role: "user", content: userText },
         { role: "assistant", content: data.reply }
       );
 
@@ -406,8 +586,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const lastMessage =
         messagesInChat[messagesInChat.length - 1];
 
-      if (lastMessage &&
-          lastMessage.classList.contains("user")) {
+      if (
+        lastMessage &&
+        lastMessage.classList.contains("user")
+      ) {
         lastMessage.remove();
       }
 
@@ -432,6 +614,10 @@ document.addEventListener("DOMContentLoaded", () => {
         voiceInput.disabled = false;
       }
 
+      if (attachFile) {
+        attachFile.disabled = false;
+      }
+
       input.focus();
     }
   });
@@ -441,6 +627,6 @@ document.addEventListener("DOMContentLoaded", () => {
   renderMessages();
 
   console.log(
-    "Personal AI Assistant with voice input initialized successfully."
+    "Personal AI Assistant with voice and document upload initialized."
   );
 });
