@@ -14,7 +14,9 @@ export default async (request) => {
       throw new Error("GEMINI_API_KEY is missing in Netlify");
     }
 
-    const { messages } = await request.json();
+    const body = await request.json();
+
+    const { messages, documentText } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return Response.json(
@@ -23,10 +25,43 @@ export default async (request) => {
       );
     }
 
+    if (
+      documentText !== undefined &&
+      typeof documentText !== "string"
+    ) {
+      return Response.json(
+        { error: "Invalid document text" },
+        { status: 400 }
+      );
+    }
+
+    const safeDocument = (documentText || "").slice(0, 20000);
+
     const contents = messages.slice(-20).map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: String(m.content).slice(0, 4000) }]
+      parts: [{
+        text: String(m.content || "").slice(0, 4000)
+      }]
     }));
+
+    // Add uploaded document to the latest user message
+    if (safeDocument) {
+      const lastUserIndex = contents.findLastIndex(
+        item => item.role === "user"
+      );
+
+      if (lastUserIndex === -1) {
+        return Response.json(
+          { error: "A user question is required" },
+          { status: 400 }
+        );
+      }
+
+      contents[lastUserIndex].parts[0].text +=
+        "\n\nUploaded document content:\n" +
+        safeDocument +
+        "\n\nAnswer the user's question using this document when relevant.";
+    }
 
     const models = [
       "gemini-3.8-flash",
@@ -36,41 +71,56 @@ export default async (request) => {
     let lastError = "AI service is temporarily unavailable.";
 
     for (const model of models) {
-      const result = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey
-          },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{
-                text: "You are a friendly, intelligent personal AI assistant. Give helpful, clear and accurate answers."
-              }]
+      try {
+        const result = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey
             },
-            contents
-          })
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{
+                  text:
+                    "You are a friendly, intelligent personal AI assistant. " +
+                    "Give helpful, clear and accurate answers. " +
+                    "When a document is provided, use its contents to answer questions. " +
+                    "If the answer is not present in the document, say so clearly."
+                }]
+              },
+              contents
+            })
+          }
+        );
+
+        const data = await result.json().catch(() => ({}));
+
+        const reply = data.candidates?.[0]?.content?.parts
+          ?.map(part => part.text || "")
+          .join("")
+          .trim();
+
+        if (result.ok && reply) {
+          return Response.json({ reply });
         }
-      );
 
-      const data = await result.json().catch(() => ({}));
+        lastError =
+          data.error?.message ||
+          `Model ${model} returned status ${result.status}`;
 
-      const reply = data.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("")
-        .trim();
+        console.error(
+          "Gemini error:",
+          model,
+          result.status,
+          lastError
+        );
 
-      if (result.ok && reply) {
-        return Response.json({ reply });
+      } catch (modelError) {
+        lastError = modelError.message;
+        console.error("Model request failed:", model, modelError);
       }
-
-      lastError =
-        data.error?.message ||
-        `Model ${model} returned status ${result.status}`;
-
-      console.error("Gemini error:", model, result.status, lastError);
     }
 
     return Response.json(
@@ -79,8 +129,7 @@ export default async (request) => {
     );
 
   } catch (error) {
-    console.
- error("Chat function error:", error);
+    console.error("Chat function error:", error);
 
     return Response.json(
       { error: error.message || "Server error" },
@@ -88,4 +137,3 @@ export default async (request) => {
     );
   }
 };
-
